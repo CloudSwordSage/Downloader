@@ -1,9 +1,9 @@
 import os
 import re
+import copy
 import requests
 import multiprocessing
 import hashlib
-import portalocker as locker
 from retry import retry
 
 class Downloader:
@@ -26,6 +26,11 @@ class Downloader:
         self.threads = threads
         self.filepath = os.path.join(root, self.filename)
         self.session = requests.Session()
+
+        if os.path.exists(self.filepath):
+            os.remove(self.filepath)
+        with open(self.filepath, 'wb') as f:
+            pass
     
     def check_file(self):
         """
@@ -45,8 +50,8 @@ class Downloader:
             content = f.read()
             local_md5 = hashlib.md5(content).hexdigest()
             if local_md5 != md5:
-                return True
-        return False
+                return False
+        return True
 
     @property
     def partition(self):
@@ -59,9 +64,14 @@ class Downloader:
         """
         file_size = self.get_file_size()
         part_size = file_size // self.threads
-        part_size = min(part_size, file_size)
-        parts = [(start, min(start+part_size, file_size))
-                 for start in range(0, file_size, part_size)]
+        parts = []
+        for i in range(self.threads):
+            start = i * part_size
+            if i == self.threads - 1:
+                end = file_size - 1
+            else:
+                end = (i + 1) * part_size - 1
+            parts.append((start, end))
         return parts
     
     def get_file_size(self):
@@ -91,7 +101,7 @@ class Downloader:
         cls.retry_times = times
 
     @retry(tries=retry_times)
-    def download_parts(self, start: int, end: int):
+    def download_parts(self, lock: object, start: int, end: int, total: int):
         """
         下载文件的一部分内容，并写入到本地文件中。
         
@@ -100,23 +110,30 @@ class Downloader:
             end (int): 下载内容的结束位置（字节）。
         
         """
-        headers = self.headers.copy()
+        headers = copy.deepcopy(self.headers)
         headers['Range'] = f'bytes={start}-{end}'
         response = self.session.get(
-            self.url, headers=self.headers, stream=True)
+            self.url, headers=headers, stream=True)
         response.raise_for_status()
         chunks = []
         for chunk in response.iter_content(chunk_size=128):
             chunks.append(chunk)
-        f =  open(self.filepath, 'wb')
-        locker.lock(f, locker.LOCK_EX)
+            lock.acquire()
+            total.value += len(chunk)
+            lock.release()
+
+        lock.acquire()
+        f = open(self.filepath, 'r+b')
         f.seek(start)
         for chunk in chunks:
             f.write(chunk)
-        del chunks
-        locker.unlock(f)
         f.close()
+        lock.release()
 
+    def print_progress(self, total):
+        file_size = self.get_file_size()
+        while True:
+            print(f"\r{total.value / 1024 ** 2:.2f}MB /{file_size / 1024 ** 2:.2f}MB", end='\t\t\t')
     
     def run(self):
         """
@@ -126,22 +143,40 @@ class Downloader:
             bool: True, 检测函数运行是否结束...tips：为了后续处理做的准备
         
         """
+        lock = multiprocessing.Lock()
+        total = multiprocessing.Value('i', 0)
+        file_size = self.get_file_size()
         parts = self.partition
         processes = []
         for start, end in parts:
             p = multiprocessing.Process(
-                target=self.download_parts, args=(start, end))
+                target=self.download_parts, args=(lock, start, end, total))
             p.start()
             processes.append(p)
+        
+        pr = multiprocessing.Process(target=self.print_progress, args=(total,))
+        pr.start()
 
         for p in processes:
             p.join()
+        
+        pr.kill()
+        print()
+
+        if self.check_file() is None:
+            print("Server Not MD5")
+        elif self.check_file():
+            print(f"{self.filename} download success, MD5 match")
+        print('-'*30, "File Size", '-'*30)
+        print("本地文件大小：", os.path.getsize(self.filepath))
+        print("远程文件大小：", file_size)
+
         return True
 
 if __name__ == '__main__':
-    url = r"https://issuecdn.baidupcs.com/issue/netdisk/yunguanjia/BaiduNetdisk_7.2.8.9.exe"
+    url = r"https://dldir1.qq.com/qqfile/qq/QQNT/Windows/QQ_9.9.15_240925_x64_01.exe"
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36 QIHU 360SE'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36 Edg/129.0.0.0'
     }
 
     d = Downloader(url, headers=headers, threads=5)

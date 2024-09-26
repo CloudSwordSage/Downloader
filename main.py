@@ -5,6 +5,7 @@ import requests
 import multiprocessing
 import hashlib
 from retry import retry
+import optparse
 
 class Downloader:
     retry_times = 3
@@ -133,7 +134,7 @@ class Downloader:
     def print_progress(self, total):
         file_size = self.get_file_size()
         while True:
-            print(f"\r{total.value / 1024 ** 2:.2f}MB /{file_size / 1024 ** 2:.2f}MB", end='\t\t\t')
+            print(f"\rDownloading: {total.value / 1024 ** 2:.2f}MB /{file_size / 1024 ** 2:.2f}MB", end='\t\t\t')
     
     def run(self):
         """
@@ -143,9 +144,14 @@ class Downloader:
             bool: True, 检测函数运行是否结束...tips：为了后续处理做的准备
         
         """
+        file_size = self.get_file_size()
+        print('-'*30, "Download Info", '-'*30)
+        print(f'File Name : {self.filename}')
+        print(f"File Size : {file_size / 1024 ** 2:.2f}MB")
+        print(f"Threads   : {self.threads}")
+        print('-'*30, "Downloading", '-'*30)
         lock = multiprocessing.Lock()
         total = multiprocessing.Value('i', 0)
-        file_size = self.get_file_size()
         parts = self.partition
         processes = []
         for start, end in parts:
@@ -162,22 +168,52 @@ class Downloader:
         
         pr.kill()
         print()
-
+        print('-'*30, "Downloaded", '-'*30)
         if self.check_file() is None:
-            print("Server Not MD5")
+            print("远程服务器未提供MD5校验值, 无法判断文件完整性")
         elif self.check_file():
-            print(f"{self.filename} download success, MD5 match")
+            print(f"{self.filename} 下载成功， MD5 匹配")
+        else:
+            print(f"{self.filename} 下载完成，但MD5不匹配，请尝试重新下载")
         print('-'*30, "File Size", '-'*30)
         print("本地文件大小：", os.path.getsize(self.filepath))
         print("远程文件大小：", file_size)
+        print("文件大小相匹配，下载完成" if file_size == os.path.getsize(self.filepath) else "文件大小不匹配, 请重新下载")
 
         return True
 
+def opt():
+    parser = optparse.OptionParser()
+    parser.add_option('-u', '--url', dest='url', help='Download URL')
+    parser.add_option('--header', dest='header', help='Custom header')
+    parser.add_option('-r', '--root', dest='root', help='Root path of the downloaded file')
+    parser.add_option('-t', '--threads', dest='threads', help='Number of threads to use')
+    parser.add_option('--retry', dest='retry', help='Retry times')
+    options, args = parser.parse_args()
+    return options, args
+
+
 if __name__ == '__main__':
-    url = r"https://dldir1.qq.com/qqfile/qq/QQNT/Windows/QQ_9.9.15_240925_x64_01.exe"
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36 Edg/129.0.0.0'
     }
-
-    d = Downloader(url, headers=headers, threads=5)
+    options, args = opt()
+    if options.url:
+        url = options.url
+    else:
+        raise ValueError('未指定 URL')
+    if options.header:
+        headers = eval(options.header)
+    if options.root:
+        root = options.root
+    else:
+        root = './'
+    if options.threads:
+        threads = int(options.threads)
+    else:
+        threads = 5
+    if options.retry:
+        Downloader.setup_retry_times(int(options.retry))
+    
+    d = Downloader(url, headers=headers, root=root, threads=threads)
     d.run()

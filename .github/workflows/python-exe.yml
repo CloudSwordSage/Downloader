@@ -1,0 +1,41 @@
+name: Python EXE Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-publish:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11.9'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          chmod +x install.sh
+          ./install.sh
+          pip install pyinstaller==6.9.0
+
+      - name: Build EXE
+        run: pyinstaller --onefile --windowed main.py
+
+      - name: Rename EXE
+        run: |
+          move dist\main.exe dist\Multi-process-downloader.exe
+
+      - name: Upload
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body_path: ./CHANGELOG.md
+          files: dist\Multi-process-downloader.exe

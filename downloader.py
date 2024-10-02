@@ -7,6 +7,8 @@ import hashlib
 from retry import retry
 import optparse
 
+from ctypes import c_ulonglong
+
 class Downloader:
     retry_times = 3
     def __init__(self, url: str, headers: dict=None, root: str='./', threads: int=5):
@@ -22,7 +24,7 @@ class Downloader:
         """
         self.url = url
         self.headers = headers
-        self.filename = re.findall(r"[^/]+$", url)[0]
+        self.filename = re.findall(r"/([^/?]*)(?:\?.*)?$", url)[0]
         self.root = root
         self.threads = threads
         self.filepath = os.path.join(root, self.filename)
@@ -151,14 +153,16 @@ class Downloader:
         print(f"Threads   : {self.threads}", flush=True)
         print('-'*30, "Downloading", '-'*30, flush=True)
         lock = multiprocessing.Lock()
-        total = multiprocessing.Value('i', 0)
+        # total = multiprocessing.Value('i', 0) # 使用 'i' 来存储总大小, 支持到大约 2GB 的文件大小, 超出会溢出形成负数
+        # 改用 c_ulonglong(unsigned long long) 类型来存储总大小, 支持到大约 17PB 的文件大小
+        total = multiprocessing.Value(c_ulonglong, 0)
         parts = self.partition
         processes = []
         for start, end in parts:
             p = multiprocessing.Process(
                 target=self.download_parts, args=(lock, start, end, total))
-            p.start()
             p.daemon = True
+            p.start()
             processes.append(p)
         
         pr = multiprocessing.Process(target=self.print_progress, args=(total,))

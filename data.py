@@ -36,7 +36,7 @@ class Database:
         new_section = 'Default'
         self.config.add_section(new_section)
         self.config.set(new_section, 'threads', '5')
-        self.config.set(new_section, 'download_dir', './Download')
+        self.config.set(new_section, 'download_dir', os.path.join(os.getenv('USERPROFILE'), 'Downloads'))
         self.config.set(new_section, 'retry', '3')
         self.config.set(new_section, 'User-Agent',
                         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36 Edg/129.0.0.0')
@@ -44,6 +44,14 @@ class Database:
         with open(os.path.join(self.ROOT, self.config_filename), 'w', encoding='utf-8') as f:
             self.config.write(f)
         return
+    
+    def reset_config(self):
+        self.update_config(
+            threads=5,
+            download_dir=os.path.join(os.getenv('USERPROFILE'), 'Downloads'),
+            retry=3,
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36 Edg/129.0.0.0'
+        )
     
     def init_download_history_table(self):
         if self.check_table_exist(self.table_name):
@@ -166,7 +174,7 @@ class Database:
 
 # if __name__ == "__main__":
 d = Database(True)
-print(d.return_config())
+# print(d.return_config())
 d.clear_history()
 import random
 for _ in range(50):
@@ -177,4 +185,4 @@ for _ in range(50):
         status = 'error'
     d.add_download_record(
         f'test{_}', f'http://test{_}.com', status, '2023-03-01 12:00:00', '100MB')
-print(d.get_page_history(1))
+# print(d.get_page_history(1))

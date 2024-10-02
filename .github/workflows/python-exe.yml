@@ -21,21 +21,19 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          chmod +x install.sh
-          ./install.sh
+          pip install -r requirements.txt
           pip install pyinstaller==6.9.0
 
       - name: Build EXE
-        run: pyinstaller --onefile --windowed main.py
+        run: pyinstaller --onefile --windowed -i .\assets\app_icon.ico main.py
 
       - name: Rename EXE
         run: |
-          move dist\main.exe dist\Multi-process-downloader.exe
+          move dist\main.exe dist\Multi-process-downloader_x86-64.exe
 
       - name: Upload
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          body_path: ./CHANGELOG.md
-          files: dist\Multi-process-downloader.exe
+          files: dist\Multi-process-downloader_x86-64.exe

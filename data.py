@@ -4,11 +4,8 @@ from configparser import ConfigParser
 
 
 class Database:
-    def __init__(self, Develop: bool = False):
-        if Develop:
-            self.ROOT = r'Downloader\\'
-        else:
-            self.ROOT = os.path.join(os.getenv('APPDATA'), 'Downloader')
+    def __init__(self):
+        self.ROOT = os.path.join(os.getenv('APPDATA'), 'Downloader')
         self.database_filename = 'downloader.db'
         self.table_name = 'download_history'
         self.config_filename = 'config.ini'
@@ -98,12 +95,12 @@ class Database:
         with open(os.path.join(self.ROOT, self.config_filename), 'w', encoding='utf-8') as f:
             self.config.write(f)
     
-    def add_download_record(self, filename, url, status, start_time, size):
+    def add_download_record(self, filename, url, status, start_time, end_time, size):
         conn = sqlite3.connect(os.path.join(self.ROOT, self.database_filename))
         cursor = conn.cursor()
         table_id = self.get_max_id() + 1
-        cursor.execute(f"INSERT INTO {self.table_name} (id, filename, url, status, start_time, size) VALUES (?, ?, ?, ?, ?, ?)",
-                       (table_id, filename, url, status, start_time, size))
+        cursor.execute(f"INSERT INTO {self.table_name} (id, filename, url, status, start_time, end_time, size) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                       (table_id, filename, url, status, start_time, end_time, size))
         conn.commit()
         conn.close()
     
@@ -152,8 +149,6 @@ class Database:
         """
         pages = self.get_pages()
         assert page <= pages, f"Page {page} is out of range (1-{pages})"
-        total_records = self.get_records_history()
-        # offset = total_records - ((page) * 20)
         offset = (page - 1) * 20
         history = self.get_history(offset, 20)
         return history
@@ -171,18 +166,3 @@ class Database:
         cursor.execute(f"DELETE FROM {self.table_name}")
         conn.commit()
         conn.close()
-
-# if __name__ == "__main__":
-d = Database(True)
-# print(d.return_config())
-d.clear_history()
-import random
-for _ in range(50):
-    a = random.random()
-    if a < 0.8:
-        status = 'ok'
-    else:
-        status = 'error'
-    d.add_download_record(
-        f'test{_}', f'http://test{_}.com', status, '2023-03-01 12:00:00', '100MB')
-# print(d.get_page_history(1))

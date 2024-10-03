@@ -25,7 +25,7 @@ jobs:
           pip install pyinstaller==6.9.0
 
       - name: Build EXE
-        run: pyinstaller --onefile --windowed -i .\assets\app_icon.ico main.py
+        run: pyinstaller --add-data 'assets/*:assets' --add-data 'assets/image/*:assets/image' --onefile --windowed -i .\assets\app_icon.ico main.py
 
       - name: Rename EXE
         run: |

@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 jobs:
-  build-and-publish:
+  build_windows:
     runs-on: windows-latest
 
     steps:
@@ -31,8 +31,27 @@ jobs:
         run: |
           move dist//main.exe Multi-process-downloader_x86-64.exe
 
-      - name: Upload
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+      - uses: actions/upload-artifact@v4
         with:
-          files: Multi-process-downloader_x86-64.exe
+          name: Multi-process-downloader_x86-64
+          path: Multi-process-downloader_x86-64.exe
+  
+  release:
+    name: Release
+    needs:
+      - build_windows
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: Multi-process-downloader_x86-64
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Multi-process-downloader_x86-64.exe

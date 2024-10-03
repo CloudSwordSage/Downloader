@@ -148,8 +148,12 @@ class DownloadHistory(QWidget):
 
         layout.addLayout(top_layout)
 
+        filename = self.data['filename']
+        if len(filename) > 25:
+            filename = filename[:25] + "..."
+
         download_label = QLabel(
-            f"文件名: {self.data['filename']} \t|\t 文件大小: {self.data['size']}", self)
+            f"文件名: {filename} \t|\t 文件大小: {self.data['size']}", self)
         download_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(download_label)
 
@@ -476,6 +480,7 @@ class StartDownload(QDialog):
         self.filename = filename
         if self.url != '' and self.filename == '':
             self.filename = get_file_name(self.url)
+            self.filename = self.filename.replace('%20', ' ')
         self.background_color = "rgb(135, 200, 255)"
         self.initUI()
 
@@ -633,6 +638,7 @@ class StartDownload(QDialog):
         url = self.url_edit.text()
         filename = get_file_name(url)
         if filename is not None:
+            filename = filename.replace('%20', ' ')
             self.filename_edit.setText(filename)
     
     def accept_download(self):

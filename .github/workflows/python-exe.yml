@@ -55,3 +55,4 @@ jobs:
         with:
           files: |
             Multi-process-downloader_x86-64.exe
+          token: ${{ secrets.UPLOAD_TOKEN }}

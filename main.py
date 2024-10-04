@@ -149,8 +149,8 @@ class DownloadHistory(QWidget):
         layout.addLayout(top_layout)
 
         filename = self.data['filename']
-        if len(filename) > 25:
-            filename = filename[:25] + "..."
+        if len(filename) > 20:
+            filename = filename[:20] + "..."
 
         download_label = QLabel(
             f"文件名: {filename} \t|\t 文件大小: {self.data['size']}", self)

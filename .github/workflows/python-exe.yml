@@ -36,10 +36,41 @@ jobs:
           name: Multi-process-downloader_x86-64
           path: Multi-process-downloader_x86-64.exe
   
+  build_linux:
+    runs-on: linux-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11.9'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install pyinstaller==6.9.0
+
+      - name: Build
+        run: pyinstaller --add-data 'assets/*:assets' --add-data 'assets/image/*:assets/image' --onefile --windowed main.py
+
+      - name: Rename
+        run: |
+          mv dist/main Multi-process-downloader_linux
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Multi-process-downloader_linux
+          path: Multi-process-downloader_linux
+  
   release:
     name: Release
     needs:
       - build_windows
+      - build_linux
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
@@ -49,6 +80,9 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: Multi-process-downloader_x86-64
+      - uses: actions/download-artifact@v4
+        with:
+          name: Multi-process-downloader_linux
 
       - name: Release
         uses: softprops/action-gh-release@v2
@@ -56,4 +90,5 @@ jobs:
           body_path: release.md
           files: |
             Multi-process-downloader_x86-64.exe
+            Multi-process-downloader_linux
           token: ${{ secrets.UPLOAD_TOKEN }}

@@ -5,7 +5,16 @@ from configparser import ConfigParser
 
 class Database:
     def __init__(self):
-        self.ROOT = os.path.join(os.getenv('APPDATA'), 'Downloader')
+        if os.name == 'nt':
+            self.ROOT = os.path.join(os.getenv('APPDATA'), 'Downloader')
+        else:
+            config_home = os.getenv(
+                'XDG_CONFIG_HOME', os.path.expanduser('~/.config'))
+            self.ROOT = os.path.join(config_home, 'Downloader')
+        if os.name == 'nt':
+            self.base_path = os.getenv('USERPROFILE')
+        else:
+            self.base_path = os.getenv('HOME')
         self.database_filename = 'downloader.db'
         self.table_name = 'download_history'
         self.config_filename = 'config.ini'
@@ -33,7 +42,7 @@ class Database:
         new_section = 'Default'
         self.config.add_section(new_section)
         self.config.set(new_section, 'threads', '5')
-        self.config.set(new_section, 'download_dir', os.path.join(os.getenv('USERPROFILE'), 'Downloads'))
+        self.config.set(new_section, 'download_dir', os.path.join(self.base_path, 'Downloads'))
         self.config.set(new_section, 'retry', '3')
         self.config.set(new_section, 'User-Agent',
                         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36 Edg/129.0.0.0')
@@ -45,7 +54,7 @@ class Database:
     def reset_config(self):
         self.update_config(
             threads=5,
-            download_dir=os.path.join(os.getenv('USERPROFILE'), 'Downloads'),
+            download_dir=os.path.join(self.base_path, 'Downloads'),
             retry=3,
             user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36 Edg/129.0.0.0'
         )
